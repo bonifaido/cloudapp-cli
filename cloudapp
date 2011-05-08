@@ -5,20 +5,21 @@ require 'cloudapp_api'
 require 'httparty'
 require 'yaml'
 
-
 def usage
-  puts 'Example usage:'
-  puts '  cloudapp list'
-  puts '  cloudapp upload [-p] FILE'
-  puts '  cloudapp delete SLUG'
-  puts '  cloudapp recover SLUG'
-  puts '  cloudapp rename SLUG, NAME'
-  puts '  cloudapp get SLUG'
-  puts '  cloudapp public SLUG'
-  puts '  cloudapp private SLUG'
-  puts
   puts 'Configuration:'
   puts '  cloudapp config USERNAME PASSWORD'
+  puts
+  puts 'Example usage:'
+  puts '  cloudapp list'
+  puts '  cloudapp stats'
+  puts '  cloudapp upload [-p] FILE'
+  puts '  cloudapp download SLUG'
+  puts '  cloudapp delete SLUG'
+  puts '  cloudapp recover SLUG'
+  puts '  cloudapp rename SLUG NAME'
+  puts '  cloudapp private [SLUG]'
+  puts '  cloudapp public [SLUG]'
+  puts '  cloudapp help'
   puts
   exit 0
 end
@@ -44,7 +45,7 @@ when 'config'
   File.open(CONFIG_FILE, 'w+') do |f|
     f.write(YAML.dump(config))
   end
-  puts 'User account ready.'
+  puts 'User account set.'
   exit 0
 end
 
@@ -54,44 +55,65 @@ config = YAML.load_file(CONFIG_FILE)
 
 @client = CloudApp::Client.new
 @client.authenticate config[:username], config[:password]
+CloudApp::Account.find rescue abort 'Wooops, an error occured, check your credentials.'
 
-case ARGV.first
-when 'list'
-  @client.drops.each do |drop|
-    puts "#{drop.name}  #{drop.item_type}  #{slug(drop)}"
+begin
+  case ARGV.first
+  when 'list'
+    @client.drops.each do |drop|
+      puts "#{drop.name}  #{drop.item_type}  #{slug(drop)}"
+    end
+  when 'stats'
+    CloudApp::Account.stats.each do |key, value|
+      puts "#{key}\t#{value}"
+    end
+  when 'upload'
+    p = ARGV.delete('-p')
+    args?
+    drop = @client.upload ARGV[1], :private => (not p.nil?)
+    puts "created #{slug(drop)}"
+  when 'private'
+    if ARGV[1]
+      drop = @client.privacy ARGV[1], true
+      puts " #{slug(drop)} changed to private"
+    else
+      CloudApp::Account.update :private_items => true
+      puts 'all drops changed to private'
+    end
+  when 'public'
+    if ARGV[1]
+      drop = @client.privacy ARGV[1], false
+      puts " #{slug(drop)} changed to public"
+    else
+      CloudApp::Account.update :private_items => false
+      puts 'all drops changed to public'
+    end
+  when 'delete'
+    args?
+    drop = @client.delete ARGV[1]
+    puts "deleted #{slug(drop)}"
+  when 'recover'
+    args?
+    drop = @client.recover ARGV[1]
+    puts "recovered #{slug(drop)}"
+  when 'rename'
+    args? 3
+    drop = @client.rename ARGV[1], ARGV[2]
+    puts "#{ARGV[1]} renamed to #{ARGV[2]}"
+  when 'download'
+    args?
+    drop = @client.drop ARGV[1]
+    File.open(drop.name, 'w') do |f|
+      f << HTTParty.get("#{drop.url}/#{drop.name}")
+    end
+    puts "downloaded #{slug(drop)}"
+  else
+    usage
   end
-when 'upload'
-  p = ARGV.delete('-p')
-  args?
-  drop = @client.upload ARGV[1], :private => (not p.nil?)
-  puts "created #{slug(drop)}"
-when 'private'
-  args?
-  drop = @client.privacy ARGV[1], true
-  puts "changed to private #{slug(drop)}"
-when 'public'
-  args?
-  drop = @client.privacy ARGV[1], false
-  puts "changed to public #{slug(drop)}"
-when "delete"
-  args?
-  drop = @client.delete ARGV[1]
-  puts "deleted #{slug(drop)}"
-when "recover"
-  args?
-  drop = @client.recover ARGV[1]
-  puts "recovered #{slug(drop)}"
-when "rename"
-  args? 3
-  drop = @client.rename ARGV[1], ARGV[2]
-  puts "renamed #{ARGV[1]} to #{ARGV[2]}"
-when "get"
-  args?
-  drop = @client.drop ARGV[1]
-  File.open(drop.name, 'w') do |f|
-    f << HTTParty.get("#{drop.url}/#{drop.name}")
-  end
-  puts "downloaded #{slug(drop)}"
-else
-  usage
+rescue SocketError
+  abort 'Wooops, an error occured, check your network settings.'
+rescue CloudApp::GenericError
+  abort "Not possble to execute #{ARGV.first} on #{ARGV[1]}."
+rescue
+  abort 'Report this as a bug.'
 end
