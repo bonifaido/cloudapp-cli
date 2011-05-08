@@ -14,7 +14,7 @@ cloudapp-cli depends on Aaron Russell's [cloudapp_api][api], so first install it
 
 Then install it with the one-liner (please make sure that your /usr/local/bin is writeable):
 
-	curl https://github.com/bonifaido/cloudapp-cli/raw/master/cloudapp -o /usr/local/bin/cloudapp
+	curl https://github.com/bonifaido/cloudapp-cli/raw/master/cloudapp -o /usr/local/bin/cloudapp && chmod +x /usr/local/bin/cloudapp
 
 Usage
 -----
