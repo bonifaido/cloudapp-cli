@@ -1,0 +1,97 @@
+#!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+
+require 'cloudapp_api'
+require 'httparty'
+require 'yaml'
+
+
+def usage
+  puts 'Example usage:'
+  puts '  cloudapp list'
+  puts '  cloudapp upload [-p] FILE'
+  puts '  cloudapp delete SLUG'
+  puts '  cloudapp recover SLUG'
+  puts '  cloudapp rename SLUG, NAME'
+  puts '  cloudapp get SLUG'
+  puts '  cloudapp public SLUG'
+  puts '  cloudapp private SLUG'
+  puts
+  puts 'Configuration:'
+  puts '  cloudapp config USERNAME PASSWORD'
+  puts
+  exit 0
+end
+
+def slug(drop)
+  drop.url.split(/\//).last if drop
+end
+
+def args?(n=2)
+  usage if ARGV.length < n
+end
+
+CONFIG_FILE = ENV['HOME'] + '/.cloudapp-cli'
+
+case ARGV.first
+when 'help', nil
+  usage
+when 'config'
+  config = {
+    :username => ARGV[1],
+    :password => ARGV[2]
+  }
+  File.open(CONFIG_FILE, 'w+') do |f|
+    f.write(YAML.dump(config))
+  end
+  puts 'User account ready.'
+  exit 0
+end
+
+abort 'Please set up your user account first.' if not File.exists?(CONFIG_FILE)
+
+config = YAML.load_file(CONFIG_FILE)
+
+@client = CloudApp::Client.new
+@client.authenticate config[:username], config[:password]
+
+case ARGV.first
+when 'list'
+  @client.drops.each do |drop|
+    puts "#{drop.name}  #{drop.item_type}  #{slug(drop)}"
+  end
+when 'upload'
+  p = ARGV.delete('-p')
+  args?
+  drop = @client.upload ARGV[1], :private => (not p.nil?)
+  puts "created #{slug(drop)}"
+when 'private'
+  args?
+  drop = @client.privacy ARGV[1], true
+  puts "changed to private #{slug(drop)}"
+when 'public'
+  args?
+  drop = @client.privacy ARGV[1], false
+  puts "changed to public #{slug(drop)}"
+when "delete"
+  args?
+  drop = @client.delete ARGV[1]
+  puts "deleted #{slug(drop)}"
+when "recover"
+  args?
+  drop = @client.recover ARGV[1]
+  puts "recovered #{slug(drop)}"
+when "rename"
+  args? 3
+  drop = @client.rename ARGV[1], ARGV[2]
+  puts "renamed #{ARGV[1]} to #{ARGV[2]}"
+when "get"
+  args?
+  drop = @client.drop ARGV[1]
+  File.open(drop.name, 'w') do |f|
+    f << HTTParty.get("#{drop.url}/#{drop.name}")
+  end
+  puts "downloaded #{slug(drop)}"
+else
+  usage
+end
