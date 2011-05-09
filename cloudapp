@@ -1,13 +1,9 @@
 #!/usr/bin/env ruby
 # -*- coding: utf-8 -*-
 
-require 'cloudapp_api'
-require 'httparty'
-require 'yaml'
-
 def usage
   puts 'Configuration:'
-  puts '  cloudapp config USERNAME PASSWORD'
+  puts '  cloudapp config [USERNAME] [PASSWORD]'
   puts
   puts 'Example usage:'
   puts '  cloudapp list'
@@ -24,6 +20,50 @@ def usage
   exit 0
 end
 
+CONFIG_FILE = ENV['HOME'] + '/.cloudapp-cli'
+
+def load_config
+  YAML.load_file(CONFIG_FILE) rescue abort 'Please set up your user account first.'
+end
+
+case ARGV.first
+when 'help', nil
+  usage
+when 'config'
+  require 'yaml'
+  if ARGV[1] and ARGV[2]
+    config = {
+      :username => ARGV[1],
+      :password => ARGV[2]
+    }
+    File.open(CONFIG_FILE, 'w+') do |f|
+      f.write(YAML.dump(config))
+    end
+    puts 'User account set.'
+  else
+    load_config.each do |k, v|
+      puts "#{k}: #{v}"
+    end
+  end
+  exit 0
+end
+
+require 'yaml'
+
+config = load_config
+
+require 'cloudapp_api'
+
+@client = CloudApp::Client.new
+@client.authenticate config[:username], config[:password]
+begin
+  CloudApp::Account.find
+rescue SocketError
+  abort 'Wooops, an error occured, check your network settings.'
+rescue CloudApp::GenericError
+  abort 'Wooops, an error occured, check your credentials.'
+end
+
 def slug(drop)
   drop.url.split(/\//).last if drop
 end
@@ -32,30 +72,6 @@ def args?(n=2)
   usage if ARGV.length < n
 end
 
-CONFIG_FILE = ENV['HOME'] + '/.cloudapp-cli'
-
-case ARGV.first
-when 'help', nil
-  usage
-when 'config'
-  config = {
-    :username => ARGV[1],
-    :password => ARGV[2]
-  }
-  File.open(CONFIG_FILE, 'w+') do |f|
-    f.write(YAML.dump(config))
-  end
-  puts 'User account set.'
-  exit 0
-end
-
-abort 'Please set up your user account first.' if not File.exists?(CONFIG_FILE)
-
-config = YAML.load_file(CONFIG_FILE)
-
-@client = CloudApp::Client.new
-@client.authenticate config[:username], config[:password]
-CloudApp::Account.find rescue abort 'Wooops, an error occured, check your credentials.'
 
 begin
   case ARGV.first
@@ -75,7 +91,7 @@ begin
   when 'private'
     if ARGV[1]
       drop = @client.privacy ARGV[1], true
-      puts " #{slug(drop)} changed to private"
+      puts "#{slug(drop)} changed to private"
     else
       CloudApp::Account.update :private_items => true
       puts 'all drops changed to private'
@@ -83,7 +99,7 @@ begin
   when 'public'
     if ARGV[1]
       drop = @client.privacy ARGV[1], false
-      puts " #{slug(drop)} changed to public"
+      puts "#{slug(drop)} changed to public"
     else
       CloudApp::Account.update :private_items => false
       puts 'all drops changed to public'
@@ -101,6 +117,7 @@ begin
     drop = @client.rename ARGV[1], ARGV[2]
     puts "#{ARGV[1]} renamed to #{ARGV[2]}"
   when 'download'
+    require 'httparty'
     args?
     drop = @client.drop ARGV[1]
     File.open(drop.name, 'w') do |f|
