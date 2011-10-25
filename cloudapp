@@ -8,7 +8,7 @@ def usage
   puts 'Example usage:'
   puts '  cloudapp list'
   puts '  cloudapp stats'
-  puts '  cloudapp upload [-p] FILE'
+  puts '  cloudapp upload [-p] FILE [FILE...]'
   puts '  cloudapp download SLUG'
   puts '  cloudapp delete SLUG'
   puts '  cloudapp recover SLUG'
@@ -86,8 +86,10 @@ begin
   when 'upload'
     p = ARGV.delete('-p')
     args?
-    drop = @client.upload ARGV[1], :private => (not p.nil?)
-    puts "created #{slug(drop)}"
+    ARGV[1..-1].each do |file|
+      drop = @client.upload file, :private => (not p.nil?)
+      puts "uploaded #{file} as #{slug(drop)}"
+    end
   when 'private'
     if ARGV[1]
       drop = @client.privacy ARGV[1], true
@@ -125,11 +127,12 @@ begin
     end
     puts "downloaded #{slug(drop)}"
   else
+    puts "unable to execute #{ARGV.first}\n\n"
     usage
   end
 rescue SocketError
   abort 'Wooops, an error occured, check your network settings.'
-rescue CloudApp::GenericError
+rescue CloudApp::ResponseError
   abort "Not possble to execute #{ARGV.first} on #{ARGV[1]}."
 rescue
   abort 'Report this as a bug.'
