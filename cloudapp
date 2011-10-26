@@ -76,8 +76,8 @@ end
 begin
   case ARGV.first
   when 'list'
-    @client.drops.each do |drop|
-      puts "http://cl.ly/#{slug(drop)}/#{drop.name}\t#{drop.item_type}"
+    CloudApp::Drop.all.each do |drop|
+      puts "#{slug(drop)}\t#{drop.content_url}"
     end
   when 'stats'
     CloudApp::Account.stats.each do |key, value|
