@@ -8,7 +8,7 @@ Install
 
 cloudapp-cli depends on the [cloudapp_api][api], so first install it as a gem dependency:
 
-	sudo gem install cloudapp_api
+	gem install cloudapp_api
 
 Install with the one-liner (shock!) (make sure that your /usr/local/bin is writable and it's in PATH):
 
@@ -29,9 +29,9 @@ Show your stats:
 
 	cloudapp stats
 
-Upload a file:
+Upload files:
 
-	cloudapp upload drumandbass.ogg
+	cloudapp upload drumandbass.ogg cheatsheet.png
 
 Upload a file as private:
 
