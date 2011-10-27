@@ -8,13 +8,14 @@ def usage
   puts 'Example usage:'
   puts '  cloudapp list'
   puts '  cloudapp stats'
-  puts '  cloudapp upload [-p] FILE [FILE...]'
-  puts '  cloudapp download SLUG'
-  puts '  cloudapp delete SLUG'
-  puts '  cloudapp recover SLUG'
+  puts '  cloudapp upload [-p] FILE...'
+  puts '  cloudapp download SLUG...'
+  puts '  cloudapp delete SLUG...'
+  puts '  cloudapp recover SLUG...'
   puts '  cloudapp rename SLUG NAME'
-  puts '  cloudapp private [SLUG]'
-  puts '  cloudapp public [SLUG]'
+  puts '  cloudapp private [SLUG...]'
+  puts '  cloudapp public [SLUG...]'
+  puts '  cloudapp home'
   puts '  cloudapp help'
   puts
   exit 0
@@ -23,14 +24,16 @@ end
 CONFIG_FILE = ENV['HOME'] + '/.cloudapp-cli'
 
 def load_config
+  require 'yaml'
   YAML.load_file(CONFIG_FILE) rescue abort 'Please set up your user account first.'
 end
 
 case ARGV.first
 when 'help', nil
   usage
+when 'home'
+  exec 'open', 'http://my.cl.ly/'
 when 'config'
-  require 'yaml'
   if ARGV[1] and ARGV[2]
     config = {
       :username => ARGV[1],
@@ -49,10 +52,9 @@ when 'config'
 end
 
 require 'yaml'
+require 'cloudapp_api'
 
 config = load_config
-
-require 'cloudapp_api'
 
 @client = CloudApp::Client.new
 @client.authenticate config[:username], config[:password]
@@ -92,28 +94,36 @@ begin
     end
   when 'private'
     if ARGV[1]
-      drop = @client.privacy ARGV[1], true
-      puts "#{slug(drop)} changed to private"
+      ARGV[1..-1].each do |slug|
+        drop = @client.privacy slug, true
+        puts "#{drop.content_url} changed to private"
+      end
     else
       CloudApp::Account.update :private_items => true
       puts 'all drops changed to private'
     end
   when 'public'
     if ARGV[1]
-      drop = @client.privacy ARGV[1], false
-      puts "#{slug(drop)} changed to public"
+      ARGV[1..-1].each do |slug|
+        drop = @client.privacy slug, false
+        puts "#{drop.content_url} changed to public"
+      end
     else
       CloudApp::Account.update :private_items => false
       puts 'all drops changed to public'
     end
   when 'delete'
     args?
-    drop = @client.delete ARGV[1]
-    puts "deleted #{slug(drop)}"
+    ARGV[1..-1].each do |slug|
+      drop = @client.delete slug
+      puts "deleted #{drop.content_url}"
+    end
   when 'recover'
     args?
-    drop = @client.recover ARGV[1]
-    puts "recovered #{slug(drop)}"
+    ARGV[1..-1].each do |slug|
+      drop = @client.recover slug
+      puts "recovered #{drop.content_url}"
+    end
   when 'rename'
     args? 3
     drop = @client.rename ARGV[1], ARGV[2]
@@ -121,11 +131,13 @@ begin
   when 'download'
     require 'httparty'
     args?
-    drop = @client.drop ARGV[1]
-    File.open(drop.name, 'w') do |f|
-      f << HTTParty.get("#{drop.url}/#{drop.name}")
+    ARGV[1..-1].each do |slug|
+      drop = @client.drop slug
+      File.open(drop.name, 'w') do |f|
+        f << HTTParty.get("#{drop.url}/#{drop.name}")
+      end
+      puts "downloaded #{drop.name}"
     end
-    puts "downloaded #{slug(drop)}"
   else
     puts "unable to execute #{ARGV.first}\n\n"
     usage
@@ -134,6 +146,6 @@ rescue SocketError
   abort 'Wooops, an error occured, check your network settings.'
 rescue CloudApp::ResponseError
   abort "Not possble to execute #{ARGV.first} on #{ARGV[1]}."
-rescue
-  abort 'Report this as a bug.'
+rescue => e
+  abort 'Report this as a bug.' + e.to_s
 end
