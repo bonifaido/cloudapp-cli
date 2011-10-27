@@ -24,7 +24,6 @@ end
 CONFIG_FILE = ENV['HOME'] + '/.cloudapp-cli'
 
 def load_config
-  require 'yaml'
   YAML.load_file(CONFIG_FILE) rescue abort 'Please set up your user account first.'
 end
 
@@ -147,5 +146,5 @@ rescue SocketError
 rescue CloudApp::ResponseError
   abort "Not possble to execute #{ARGV.first} on #{ARGV[1]}."
 rescue => e
-  abort 'Report this as a bug.' + e.to_s
+  abort "Report this as a bug:\n" + e.to_s
 end
