@@ -61,7 +61,7 @@ Recover a drop:
 
 	cloudapp recover dZ69
 
-Jump to jour homepage:
+Jump to your homepage:
 
 	cloudapp home
 
