@@ -24,7 +24,15 @@ end
 CONFIG_FILE = ENV['HOME'] + '/.cloudapp-cli'
 
 def load_config
+  require 'yaml'
   YAML.load_file(CONFIG_FILE) rescue abort 'Please set up your user account first.'
+end
+
+def save_config(config)
+  require 'yaml'
+  File.open(CONFIG_FILE, 'w+') do |f|
+    f.write(YAML.dump(config))
+  end
 end
 
 case ARGV.first
@@ -34,13 +42,7 @@ when 'home'
   exec 'open', 'http://my.cl.ly/'
 when 'config'
   if ARGV[1] and ARGV[2]
-    config = {
-      :username => ARGV[1],
-      :password => ARGV[2]
-    }
-    File.open(CONFIG_FILE, 'w+') do |f|
-      f.write(YAML.dump(config))
-    end
+    save_config(:username => ARGV[1], :password => ARGV[2])
     puts 'User account set.'
   else
     load_config.each do |k, v|
@@ -50,10 +52,10 @@ when 'config'
   exit 0
 end
 
-require 'yaml'
-require 'cloudapp_api'
-
 config = load_config
+
+
+require 'cloudapp_api'
 
 @client = CloudApp::Client.new
 @client.authenticate config[:username], config[:password]
