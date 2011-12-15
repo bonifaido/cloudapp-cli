@@ -9,6 +9,9 @@ Install
 cloudapp-cli depends on the [cloudapp_api][api], so first install it as a gem dependency:
 
 	gem install cloudapp_api
+	
+	# on ruby 1.8 the json gem is not installed by default
+	gem install json
 
 Install with the one-liner (shock!) (make sure that your /usr/local/bin is writable and it's in PATH):
 
